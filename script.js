@@ -118,16 +118,6 @@ function searchEntries(query) {
     ) {
       definitionMatches.push(entry);
     }
-
-    if (
-      exactHeadwordMatches.length +
-        prefixHeadwordMatches.length +
-        containsHeadwordMatches.length +
-        definitionMatches.length >
-      600
-    ) {
-      break;
-    }
   }
 
   const headwordMatches = [

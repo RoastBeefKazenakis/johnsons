@@ -52,12 +52,15 @@ def parse_entries_from_html(raw_html: str) -> List[Tuple[str, str]]:
     combined = re.sub(r"\s+", " ", combined).strip()
 
     # Entry boundaries usually appear as:
-    # "WORD, ..." or "To WORD, ..."
-    boundary = re.compile(r"(?=(?:^|\s)(?:To\s+)?[A-Z][A-Z' \-]{1,40}[*§$]?,\s)")
+    # "WORD, ...", "WORD*, ...", "WORD §*, ...", or "To WORD, ..."
+    # Johnson/OCR often puts a space before §* (e.g. "SIMULATE §*, slm'-u-latc.").
+    _hw = r"[A-Z][A-Z' \-]{1,40}"
+    _marks = r"(?:(?:\*)|(?:\s*§\*?))?"
+    boundary = re.compile(rf"(?=(?:^|\s)(?:To\s+)?{_hw}{_marks},\s)")
     chunks = [chunk.strip() for chunk in boundary.split(combined) if chunk.strip()]
 
     entries: List[Tuple[str, str]] = []
-    headword_pattern = re.compile(r"^(?:To\s+)?([A-Z][A-Z' \-]{1,40})[*§$]?,\s*(.+)$")
+    headword_pattern = re.compile(rf"^(?:To\s+)?({_hw}){_marks},\s*(.+)$")
     for chunk in chunks:
         chunk = re.sub(r"\s+", " ", chunk).strip()
         match = headword_pattern.match(chunk)
