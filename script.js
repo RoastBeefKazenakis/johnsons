@@ -60,6 +60,10 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function normalizeForSearch(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 function buildSearchIndex() {
   if (!bookData || !bookData.letters) {
     flatEntries = [];
@@ -77,47 +81,79 @@ function buildSearchIndex() {
         definition,
         headwordLower: headword.toLowerCase(),
         definitionLower: definition.toLowerCase(),
+        headwordSearch: normalizeForSearch(headword),
+        definitionSearch: normalizeForSearch(definition),
       });
     });
   });
 }
 
 function searchEntries(query) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
+  const raw = query.trim();
+  const normalized = raw.toLowerCase();
+  const normalizedCompact = normalizeForSearch(raw);
+  if (!normalized || !normalizedCompact) {
     renderChapter();
     return;
   }
 
-  const startsWithMatches = [];
-  const includesMatches = [];
+  const exactHeadwordMatches = [];
+  const prefixHeadwordMatches = [];
+  const containsHeadwordMatches = [];
   const definitionMatches = [];
-  const maxResults = 80;
+
+  const maxHeadwordResults = 40;
+  const maxDefinitionResults = 40;
 
   for (const entry of flatEntries) {
-    if (entry.headwordLower.startsWith(normalized)) {
-      startsWithMatches.push(entry);
-    } else if (entry.headwordLower.includes(normalized)) {
-      includesMatches.push(entry);
-    } else if (entry.definitionLower.includes(normalized)) {
+    if (entry.headwordSearch === normalizedCompact) {
+      exactHeadwordMatches.push(entry);
+    } else if (entry.headwordSearch.startsWith(normalizedCompact)) {
+      prefixHeadwordMatches.push(entry);
+    } else if (entry.headwordSearch.includes(normalizedCompact)) {
+      containsHeadwordMatches.push(entry);
+    } else if (
+      entry.definitionLower.includes(normalized) ||
+      entry.definitionSearch.includes(normalizedCompact)
+    ) {
       definitionMatches.push(entry);
     }
 
-    if (startsWithMatches.length + includesMatches.length + definitionMatches.length > 350) {
+    if (
+      exactHeadwordMatches.length +
+        prefixHeadwordMatches.length +
+        containsHeadwordMatches.length +
+        definitionMatches.length >
+      600
+    ) {
       break;
     }
   }
 
-  const matches = [...startsWithMatches, ...includesMatches, ...definitionMatches].slice(0, maxResults);
-  isSearchMode = true;
-  progressLabel.textContent = `Search: ${matches.length} result${matches.length === 1 ? "" : "s"}`;
+  const headwordMatches = [
+    ...exactHeadwordMatches,
+    ...prefixHeadwordMatches,
+    ...containsHeadwordMatches,
+  ].slice(0, maxHeadwordResults);
 
-  if (matches.length === 0) {
+  const matchedHeadwordSet = new Set(
+    headwordMatches.map((entry) => `${entry.letter}::${entry.headword}`)
+  );
+  const filteredDefinitionMatches = definitionMatches
+    .filter((entry) => !matchedHeadwordSet.has(`${entry.letter}::${entry.headword}`))
+    .slice(0, maxDefinitionResults);
+
+  const totalMatches = headwordMatches.length + filteredDefinitionMatches.length;
+  isSearchMode = true;
+  progressLabel.textContent = `Search: ${totalMatches} result${totalMatches === 1 ? "" : "s"}`;
+
+  if (totalMatches === 0) {
     viewer.innerHTML = `<p class="search-meta">No entries found for <strong>${escapeHtml(query)}</strong>.</p>`;
     return;
   }
 
-  const cards = matches
+  const cardsFor = (entries) =>
+    entries
     .map((entry) => {
       const snippet = escapeHtml(entry.definition.slice(0, 320));
       return `
@@ -130,9 +166,28 @@ function searchEntries(query) {
     })
     .join("");
 
+  const headwordSection = headwordMatches.length
+    ? `
+      <section class="search-results">
+        <h2>Headword matches</h2>
+        ${cardsFor(headwordMatches)}
+      </section>
+    `
+    : "";
+
+  const definitionSection = filteredDefinitionMatches.length
+    ? `
+      <section class="search-results">
+        <h2>Definition matches</h2>
+        ${cardsFor(filteredDefinitionMatches)}
+      </section>
+    `
+    : "";
+
   viewer.innerHTML = `
-    <p class="search-meta">Showing ${matches.length} results for <strong>${escapeHtml(query)}</strong>.</p>
-    <section class="search-results">${cards}</section>
+    <p class="search-meta">Showing ${totalMatches} results for <strong>${escapeHtml(query)}</strong>.</p>
+    ${headwordSection}
+    ${definitionSection}
   `;
 
   viewer.querySelectorAll(".search-jump").forEach((button) => {
