@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EPub Reader - Johnsons</title>
+    <meta
+      name="description"
+      content="A beautiful JAMstack EPub interface for GitHub Pages."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">
+          <h1>Library Reader</h1>
+          <p id="bookTitle">Loading book metadata...</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="search-wrap">
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Search headword (e.g. abandon)"
+              aria-label="Search dictionary entries"
+            />
+            <button id="searchClear" type="button" class="ghost-btn hidden">Clear</button>
+          </div>
+          <button id="themeToggle" type="button" class="ghost-btn">Toggle Theme</button>
+          <button id="tocToggle" type="button" class="ghost-btn">Contents</button>
+        </div>
+      </header>
+
+      <aside id="tocPanel" class="toc-panel hidden" aria-label="Table of contents">
+        <div class="toc-header">
+          <h2>Table of Contents</h2>
+          <button id="tocClose" type="button" class="ghost-btn">Close</button>
+        </div>
+        <nav id="tocList" class="toc-list"></nav>
+      </aside>
+
+      <main class="reader-layout">
+        <section class="viewer-card">
+          <div id="viewer" class="viewer" role="region" aria-label="Book content"></div>
+        </section>
+      </main>
+
+      <footer class="controls">
+        <button id="prevBtn" type="button" class="control-btn">Previous</button>
+        <div class="control-group">
+          <label for="fontSize">Font Size</label>
+          <input id="fontSize" type="range" min="80" max="160" value="100" />
+        </div>
+        <div class="progress-wrap">
+          <span id="progressLabel">Progress: 0%</span>
+          <div class="progress-track">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+        </div>
+        <button id="nextBtn" type="button" class="control-btn">Next</button>
+      </footer>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
