@@ -227,11 +227,19 @@ async function initReader() {
       : "Book metadata unavailable";
 
     if (bookData.chapters && bookData.chapters.length > 0) {
-      renderToc(
-        bookData.chapters.map((chapter) => ({
-          label: chapter.title || "Untitled section",
-        }))
-      );
+      const tocFromLetters = (bookData.chapters || []).map((chapter) => {
+        const letter = chapter.title || "";
+        const entries = (bookData.letters && bookData.letters[letter]) || [];
+        const count = entries.length;
+        const firstWord = count > 0 ? entries[0].headword : "";
+        const lastWord = count > 0 ? entries[count - 1].headword : "";
+        const range =
+          firstWord && lastWord ? ` - ${firstWord} ... ${lastWord}` : "";
+        return {
+          label: `${letter} (${count} entries)${range}`,
+        };
+      });
+      renderToc(tocFromLetters);
     } else {
       tocList.innerHTML = "<p>No table of contents found.</p>";
     }
