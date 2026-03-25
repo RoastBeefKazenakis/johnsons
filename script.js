@@ -217,9 +217,16 @@ async function initReader() {
 
     const response = await fetch(BOOK_JSON, { cache: "no-store" });
     if (!response.ok) {
-      throw new Error(`Could not fetch ${BOOK_JSON}`);
+      throw new Error(`HTTP ${response.status} fetching ${BOOK_JSON}`);
     }
-    bookData = await response.json();
+    const rawText = await response.text();
+    try {
+      bookData = JSON.parse(rawText);
+    } catch (parseErr) {
+      throw new Error(
+        `Invalid JSON in ${BOOK_JSON}: ${parseErr.message}. If you edited the file by hand, check for trailing commas or broken strings.`
+      );
+    }
 
     const metadata = bookData.metadata || {};
     titleEl.textContent = metadata.title
