@@ -17,14 +17,15 @@ const searchClear = document.getElementById("searchClear");
 
 let bookData;
 let chapterIndex = 0;
+let letterOrder = [];
 let flatEntries = [];
 let isSearchMode = false;
 
 function updateProgress() {
-  if (!bookData || !bookData.chapters || bookData.chapters.length === 0) {
+  if (!bookData || !letterOrder || letterOrder.length === 0) {
     return;
   }
-  const pct = chapterIndex / Math.max(1, bookData.chapters.length - 1);
+  const pct = chapterIndex / Math.max(1, letterOrder.length - 1);
   const rounded = Math.max(0, Math.min(100, Math.round(pct * 100)));
   progressLabel.textContent = `Progress: ${rounded}%`;
   progressBar.style.width = `${rounded}%`;
@@ -41,14 +42,31 @@ function applyFontSize(scale) {
 }
 
 function renderChapter() {
-  if (!bookData || !bookData.chapters || bookData.chapters.length === 0) {
-    viewer.innerHTML = "<p>No chapters found in book.json.</p>";
+  if (!bookData || !bookData.letters || !letterOrder || letterOrder.length === 0) {
+    viewer.innerHTML = "<p>No letters found in book.json.</p>";
     return;
   }
 
-  const chapter = bookData.chapters[chapterIndex];
+  const letter = letterOrder[chapterIndex];
+  const entries = (bookData.letters && bookData.letters[letter]) || [];
   isSearchMode = false;
-  viewer.innerHTML = chapter.html || `<p>${chapter.text || ""}</p>`;
+
+  if (!entries.length) {
+    viewer.innerHTML = `<p>No entries found for letter <strong>${escapeHtml(letter)}</strong>.</p>`;
+    updateProgress();
+    return;
+  }
+
+  const entryHtml = entries
+    .map(
+      (entry) =>
+        `<article class="dict-entry"><h3>${escapeHtml(
+          entry.headword || ""
+        )}</h3><p>${escapeHtml(entry.definition || "")}</p></article>`
+    )
+    .join("");
+
+  viewer.innerHTML = entryHtml;
   updateProgress();
 }
 
@@ -183,8 +201,8 @@ function searchEntries(query) {
   viewer.querySelectorAll(".search-jump").forEach((button) => {
     button.addEventListener("click", () => {
       const letter = button.getAttribute("data-letter");
-      const nextIndex = (bookData.chapters || []).findIndex((chapter) => chapter.title === letter);
-      if (nextIndex >= 0) {
+      const nextIndex = letterOrder.findIndex((l) => l === letter);
+      if (nextIndex >= 0 && nextIndex < letterOrder.length) {
         chapterIndex = nextIndex;
         renderChapter();
         viewer.scrollTop = 0;
@@ -233,25 +251,30 @@ async function initReader() {
       ? `${metadata.title}${metadata.creator ? ` - ${metadata.creator}` : ""}`
       : "Book metadata unavailable";
 
-    if (bookData.chapters && bookData.chapters.length > 0) {
-      const tocFromLetters = (bookData.chapters || []).map((chapter) => {
-        const letter = chapter.title || "";
-        const entries = (bookData.letters && bookData.letters[letter]) || [];
-        const count = entries.length;
-        const firstWord = count > 0 ? entries[0].headword : "";
-        const lastWord = count > 0 ? entries[count - 1].headword : "";
-        const range =
-          firstWord && lastWord ? ` - ${firstWord} ... ${lastWord}` : "";
-        return {
-          label: `${letter} (${count} entries)${range}`,
-        };
-      });
+    const lettersObj = bookData.letters || {};
+    const alphabetOrder = Array.from({ length: 26 }, (_, i) => String.fromCharCode("A".charCodeAt(0) + i));
+    letterOrder = alphabetOrder.filter((l) => Array.isArray(lettersObj[l]) && lettersObj[l].length > 0);
+    if (Array.isArray(lettersObj["#"]) && lettersObj["#"].length > 0) {
+      letterOrder.push("#");
+    }
+
+    const tocFromLetters = letterOrder.map((letter) => {
+      const entries = lettersObj[letter] || [];
+      const count = entries.length;
+      const firstWord = count > 0 ? entries[0].headword : "";
+      const lastWord = count > 0 ? entries[count - 1].headword : "";
+      const range = firstWord && lastWord ? ` - ${firstWord} ... ${lastWord}` : "";
+      return { label: `${letter} (${count} entries)${range}` };
+    });
+
+    if (tocFromLetters.length > 0) {
       renderToc(tocFromLetters);
     } else {
       tocList.innerHTML = "<p>No table of contents found.</p>";
     }
 
     buildSearchIndex();
+    chapterIndex = 0;
     renderChapter();
 
     prevBtn.addEventListener("click", () => {
@@ -265,7 +288,7 @@ async function initReader() {
       if (isSearchMode) {
         return;
       }
-      chapterIndex = Math.min((bookData.chapters?.length || 1) - 1, chapterIndex + 1);
+      chapterIndex = Math.min(letterOrder.length - 1, chapterIndex + 1);
       renderChapter();
     });
 
@@ -280,7 +303,7 @@ async function initReader() {
         if (isSearchMode) {
           return;
         }
-        chapterIndex = Math.min((bookData.chapters?.length || 1) - 1, chapterIndex + 1);
+        chapterIndex = Math.min(letterOrder.length - 1, chapterIndex + 1);
         renderChapter();
       }
     });
